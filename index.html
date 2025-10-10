@@ -234,6 +234,8 @@
         let mistakesMade = [];
         let lastAskedQuestions = [];
         const RECENT_HISTORY_LENGTH = 5;
+        let speechSupportStatus = 'pending'; // Tracks browser speech support: 'pending', 'supported', or 'unsupported'.
+        let speechVoice = null; // Will hold the best available voice object.
 
         // --- DOM ELEMENTS ---
         const gameSelectionDiv = document.getElementById('game-selection');
@@ -277,41 +279,22 @@
 
         // --- SPEECH SYNTHESIS ---
         const synth = window.speechSynthesis;
-        let japaneseVoice = null;
 
-        function loadVoices() {
-            const voices = synth.getVoices();
-            japaneseVoice = voices.find(voice => voice.lang === 'ja-JP');
-            if (!japaneseVoice) {
-                japaneseVoice = voices.find(voice => voice.lang.startsWith('ja'));
-            }
-        }
-
-        if (synth.onvoiceschanged !== undefined) {
-            synth.onvoiceschanged = loadVoices;
-        }
-        loadVoices();
-
+        // The main function that speaks the provided text using the best available voice.
         function speak(text) {
-             if (synth.speaking) {
-                synth.cancel();
-            }
-            if (!japaneseVoice) {
-                console.warn("Japanese voice not available. Attempting to reload.");
-                loadVoices(); 
-                if(!japaneseVoice) {
-                    console.error("Japanese voice not found.");
-                    return;
-                }
-            }
+            // Exit if speech is not supported.
+            if (speechSupportStatus !== 'supported' || !speechVoice) return;
+
+            if (synth.speaking) synth.cancel(); // Stop any currently speaking utterance to prevent overlap.
+
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.voice = japaneseVoice;
-            utterance.lang = 'ja-JP';
+            utterance.voice = speechVoice; 
+            utterance.lang = speechVoice.lang;
             utterance.rate = 0.9;
             synth.speak(utterance);
         }
 
-
+        // Helper to speak the current question's word/phrase.
         function speakCurrentWord() {
             if (currentQuestion) {
                  const textToSpeak = currentQuestion.pronunciation || currentQuestion.ja;
@@ -435,13 +418,20 @@
                 wordsInCategory.forEach(word => {
                     const li = document.createElement('li');
                     li.className = 'flex justify-between items-center text-slate-300 p-2 rounded-md';
+                    
+                    const canSpeak = speechSupportStatus === 'supported';
                     const textToSpeak = word.pronunciation || word.ja;
                     const safeText = textToSpeak.replace(/'/g, "\\'");
+
+                    const audioControlHTML = canSpeak
+                        ? `<button onclick="speak('${safeText}')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-transform transform hover:scale-110">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                            </button>`
+                        : ''; // If not supported, don't show anything.
+
                     li.innerHTML = `
                         <div class="flex items-center gap-3">
-                            <button onclick="speak('${safeText}')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-transform transform hover:scale-110">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                            </button>
+                            ${audioControlHTML}
                             <span class="font-bold">${word.ja}</span>
                         </div>
                         <span class="text-right text-slate-400">${word.en}</span>
@@ -462,13 +452,20 @@
             mistakesMade.forEach(mistake => {
                 const li = document.createElement('li');
                 li.className = 'flex justify-between items-center text-slate-300 p-2 bg-slate-600/50 rounded-md';
+
+                const canSpeak = speechSupportStatus === 'supported';
                 const textToSpeak = mistake.pronunciation || mistake.ja;
                 const safeText = textToSpeak.replace(/'/g, "\\'");
+
+                const audioControlHTML = canSpeak
+                    ? `<button onclick="speak('${safeText}')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-transform transform hover:scale-110">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                        </button>`
+                    : ''; // If not supported, don't show anything.
+
                 li.innerHTML = `
                     <div class="flex items-center gap-3">
-                        <button onclick="speak('${safeText}')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-transform transform hover:scale-110">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                        </button>
+                        ${audioControlHTML}
                         <span class="font-bold">${mistake.ja}</span>
                     </div>
                     <span class="text-right text-slate-400">${mistake.en}</span>
@@ -519,23 +516,31 @@
             }
             
             let question, options;
+            const canSpeak = speechSupportStatus === 'supported';
+            speakButton.classList.add('hidden'); // Hide button by default
             switch (currentGameMode) {
                 case 1: // Japanese to English
                     question = currentQuestion.ja;
                     options = [currentQuestion.en, ...incorrectOptions.map(opt => opt.en)];
-                    speakButton.classList.remove('hidden');
-                    speakCurrentWord(); 
+                    if (canSpeak) {
+                        speakButton.classList.remove('hidden');
+                        speakCurrentWord();
+                    }
                     break;
                 case 2: // English to Japanese
                     question = currentQuestion.en;
                     options = [currentQuestion.ja, ...incorrectOptions.map(opt => opt.ja)];
-                    speakButton.classList.add('hidden');
                     break;
                 case 3: // Listening Comprehension
                     question = "Listen...";
                     options = [currentQuestion.en, ...incorrectOptions.map(opt => opt.en)];
-                    speakButton.classList.remove('hidden');
-                    speakCurrentWord();
+                     if (canSpeak) {
+                        speakButton.classList.remove('hidden');
+                        speakCurrentWord();
+                    } else {
+                        // This case should not be reachable if the button is hidden, but serves as a safeguard.
+                        question = "Audio not supported.";
+                    }
                     break;
             }
             
@@ -548,14 +553,17 @@
                 button.textContent = option;
                 button.className = "w-full bg-slate-600 hover:bg-slate-500 text-white font-semibold py-4 px-4 rounded-lg text-md transition-all duration-200 shadow-sm border border-slate-500";
                 button.onclick = () => {
-                    if (currentGameMode === 2) {
+                    let shouldDelay = false;
+                    const canSpeak = speechSupportStatus === 'supported';
+                    if (currentGameMode === 2 && canSpeak) {
                         const vocabItem = vocabulary.find(v => v.ja === option);
-                        const textToSpeak = vocabItem?.pronunciation || option;
-                        speak(textToSpeak);
-                        checkAnswer(option, button, true);
-                    } else {
-                        checkAnswer(option, button, false);
+                        if (vocabItem) {
+                            const textToSpeak = vocabItem.pronunciation || vocabItem.ja;
+                            speak(textToSpeak);
+                            shouldDelay = true;
+                        }
                     }
+                    checkAnswer(option, button, shouldDelay);
                 };
                 optionsGrid.appendChild(button);
             });
@@ -604,6 +612,67 @@
                 performFeedback();
             }
         }
+
+        // --- BROWSER SUPPORT CHECK ---
+        let voiceCheckInterval = null;
+        let voiceCheckAttempts = 0;
+
+        function initializeSpeech() {
+            const voices = synth.getVoices();
+            
+            if (voices.length > 0) {
+                if (voiceCheckInterval) clearInterval(voiceCheckInterval);
+
+                // ONLY look for a Japanese voice. No fallback to other languages.
+                speechVoice = voices.find(voice => voice.lang === 'ja-JP') || voices.find(voice => voice.lang.startsWith('ja'));
+
+                if (speechVoice) {
+                    speechSupportStatus = 'supported';
+                    console.log("Native Japanese voice found and supported.");
+                } else {
+                    // If no Japanese voice is found after the search, it's officially unsupported.
+                    speechSupportStatus = 'unsupported';
+                    console.warn("No Japanese voice found. Audio features will be disabled.");
+                }
+            }
+            
+            if (voiceCheckAttempts >= 12 && voices.length === 0) {
+                 if (voiceCheckInterval) clearInterval(voiceCheckInterval);
+                 speechSupportStatus = 'unsupported';
+                 console.error("No speech synthesis voices available after multiple attempts.");
+            }
+
+            if(speechSupportStatus !== 'pending') {
+                updateUIAfterSpeechCheck();
+            }
+        }
+        
+        // This function updates the UI once a final decision on speech support has been made.
+        function updateUIAfterSpeechCheck() {
+             if (speechSupportStatus === 'unsupported') {
+                const listeningButton = document.querySelector('button[onclick="startGame(3)"]');
+                if (listeningButton) {
+                    listeningButton.classList.add('hidden'); // HIDE the button if audio is not supported.
+                }
+            }
+        }
+        
+        // Listen for the 'voiceschanged' event.
+        if ('onvoiceschanged' in synth) {
+            synth.onvoiceschanged = initializeSpeech;
+        }
+
+        // Use a polling mechanism as a robust fallback for older devices.
+        voiceCheckInterval = setInterval(() => {
+            voiceCheckAttempts++;
+            const voices = synth.getVoices();
+            if (voices.length > 0 || voiceCheckAttempts >= 12) {
+                initializeSpeech();
+            }
+            if (speechSupportStatus !== 'pending') {
+                 clearInterval(voiceCheckInterval);
+            }
+        }, 250);
 
     </script>
 </body>
