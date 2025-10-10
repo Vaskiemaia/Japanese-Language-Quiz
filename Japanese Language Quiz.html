@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Japanese Language Quiz App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .feedback-correct {
+            animation: flash-green 0.5s ease;
+        }
+        .feedback-incorrect {
+            animation: flash-red 0.5s ease;
+        }
+        @keyframes flash-green {
+            0%, 100% { background-color: #10B981; } /* Tailwind green-500 */
+            50% { background-color: #6EE7B7; } /* Tailwind green-300 */
+        }
+        @keyframes flash-red {
+            0%, 100% { background-color: #EF4444; } /* Tailwind red-500 */
+            50% { background-color: #F87171; } /* Tailwind red-300 */
+        }
+        /* Custom Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background-color: #334155; /* slate-700 */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background-color: #6366F1; /* indigo-500 */
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #818CF8; /* indigo-400 */
+        }
+        /* Custom checkbox style */
+        .custom-checkbox:checked {
+            background-color: #6366F1;
+            border-color: #6366F1;
+        }
+        .custom-checkbox:checked::after {
+            content: '✔';
+            color: white;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-200 flex items-center justify-center min-h-screen">
+
+    <div id="app-container" class="w-full max-w-2xl mx-auto p-4 sm:p-6 md:p-8">
+        <div class="bg-slate-800 rounded-2xl shadow-lg p-6 sm:p-8 transition-all duration-300 relative">
+            
+            <header class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-indigo-400">日本語クイズ</h1>
+                <p class="text-slate-400 mt-2">Japanese Language Quiz</p>
+            </header>
+
+            <!-- Game Mode Selection -->
+            <div id="game-selection" class="space-y-4">
+                 <h2 class="text-2xl font-semibold text-center mb-6">Choose an Activity</h2>
+                <button onclick="startGame(1)" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-4 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-md">
+                    <span class="block">Japanese to English</span>
+                    <span class="block text-sm text-indigo-200">Match the Japanese word to its English meaning.</span>
+                </button>
+                <button onclick="startGame(2)" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-bold py-4 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-md">
+                    <span class="block">English to Japanese</span>
+                     <span class="block text-sm text-purple-200">Match the English word to its Japanese meaning.</span>
+                </button>
+                 <button onclick="startGame(3)" class="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-md">
+                    <span class="block">Listening Comprehension</span>
+                    <span class="block text-sm text-teal-200">Listen to the Japanese word and find its English meaning.</span>
+                </button>
+                <button onclick="showStudyMode()" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-bold py-4 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-md">
+                    <span class="block">Study Mode</span>
+                    <span class="block text-sm text-slate-300">Review all words and phrases by category.</span>
+                </button>
+            </div>
+
+             <!-- Category Selection Screen -->
+            <div id="category-selection-screen" class="hidden">
+                <div class="flex justify-start items-center mb-6">
+                     <button onclick="goToMainMenu()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2 px-4 rounded-lg transition-colors">&larr; Menu</button>
+                </div>
+                <h2 class="text-2xl font-semibold text-center text-cyan-400 mb-6">Select Categories</h2>
+                <div id="category-list" class="space-y-3 bg-slate-700 p-4 rounded-lg max-h-60 overflow-y-auto mb-6">
+                    <!-- Categories will be populated here -->
+                </div>
+                <p id="category-error" class="text-red-500 text-center mb-4 hidden">Please select at least one category.</p>
+                <button onclick="startQuizWithSelectedCategories()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-md">
+                    Start Quiz
+                </button>
+            </div>
+
+            <!-- Mistakes Screen -->
+            <div id="mistakes-screen" class="hidden">
+                <h2 class="text-2xl font-semibold text-center text-amber-400 mb-6">Words to Review</h2>
+                <ul id="mistakes-list" class="space-y-3 bg-slate-700 p-4 rounded-lg max-h-80 overflow-y-auto mb-6">
+                    <!-- Mistakes will be populated here -->
+                </ul>
+                <button onclick="goToMainMenu()" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105 shadow-md">
+                    Main Menu
+                </button>
+            </div>
+            
+            <!-- Study Screen -->
+            <div id="study-screen" class="hidden">
+                <div class="flex justify-start items-center mb-6">
+                    <button onclick="goToMainMenu()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2 px-4 rounded-lg transition-colors">&larr; Menu</button>
+                </div>
+                <h2 class="text-2xl font-semibold text-center text-sky-400 mb-6">Vocabulary List</h2>
+                <div id="study-list-container" class="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+                    <!-- Study content will be populated here -->
+                </div>
+            </div>
+
+            <!-- Game Interface -->
+            <div id="game-interface" class="hidden">
+                <div class="flex justify-start items-center mb-6">
+                    <button onclick="showMenu()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-2 px-4 rounded-lg transition-colors">&larr; Menu</button>
+                </div>
+
+                <div id="question-area" class="text-center p-6 bg-slate-700 rounded-lg shadow-inner min-h-[150px] flex items-center justify-center">
+                    <div id="question-prompt" class="flex items-center justify-center gap-4">
+                         <h2 id="question-text" class="text-3xl md:text-4xl font-bold text-white"></h2>
+                         <button id="speak-button" onclick="speakCurrentWord()" class="hidden bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-full transition-transform transform hover:scale-110">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                         </button>
+                    </div>
+                </div>
+
+                <div id="options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                    <!-- Options will be generated here -->
+                </div>
+                
+                <div id="feedback-message" class="mt-6 text-center text-xl font-medium min-h-[4rem]"></div>
+            </div>
+        </div>
+        <footer class="text-center mt-6 text-sm text-slate-500">
+            <p>A fun way to practice your Japanese vocabulary.</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- DATA ---
+        const vocabulary = [
+            // Greetings
+            { ja: "Ohayo Gozaimasu", en: "Good morning", category: "Greetings", pronunciation: "おはよう ございます" },
+            { ja: "Konnichiwa", en: "Good afternoon", category: "Greetings", pronunciation: "こんにちわ"  },
+            { ja: "Konbanwa", en: "Good evening", category: "Greetings" },
+            { ja: "Sayōnara", en: "Goodbye", category: "Greetings", pronunciation: "さよなら" },
+            { ja: "Jā ne", en: "See you later", category: "Greetings", pronunciation: "じゃあね" },
+            { ja: "Yoroshiku onegaishimasu", en: "Pleased to meet you", category: "Greetings", pronunciation: "よろしくお願いします" },
+            // Courtesy
+            { ja: "Arigatou gozaimasu", en: "Thank you", category: "Courtesy", pronunciation: "ありがとう ございます" },
+            { ja: "Dōmo", en: "Thanks", category: "Courtesy" },
+            { ja: "Gomen nasai", en: "I am sorry", category: "Courtesy" },
+            { ja: "Onegaishimasu", en: "Please", category: "Courtesy", pronunciation: "お願いします" },
+            { ja: "Sumimasen", en: "Excuse me", category: "Courtesy" },
+            { ja: "Daijōbu desu", en: "I'm fine", category: "Courtesy", pronunciation: "大丈夫です" },
+            { ja: "Onamae wa nanto iimasuka", en: "What is your name?", category: "Courtesy", pronunciation: "お名前 和 なんと 言いますか" },
+            { ja: "Watashi no namae wa basuko desu", en: "My name is Vasco", category: "Courtesy", pronunciation: "私の名前はバスコです" },
+            // Essential
+            { ja: "Hai", en: "Yes", category: "Essential" },
+            { ja: "Iie", en: "No", category: "Essential" },
+            { ja: "To", en: "And", category: "Essential", pronunciation: "と" },
+            { ja: "Wakarimasu", en: "I understand", category: "Essential" },
+            { ja: "Wakarimasen", en: "I don't understand", category: "Essential" },
+            { ja: "Eigo de hanasemasu ka?", en: "Can you speak in english?", category: "Essential", pronunciation: "英語で話せますか？" },
+            { ja: "Kore wa nan desu ka?", en: "What is this?", category: "Essential", pronunciation: "これは何ですか？" },
+            { ja: "Ikura desu ka?", en: "How much is it?", category: "Essential", pronunciation: "いくらですか？" },
+            // Directional
+            { ja: "Koko", en: "Here", category: "Directional" },
+            { ja: "Soko", en: "There", category: "Directional", pronunciation: "そこ" },
+            { ja: "Doko", en: "Where", category: "Directional" },
+            { ja: "Kore", en: "This", category: "Directional" },
+            { ja: "Sore", en: "That", category: "Directional", pronunciation: "それ" },
+            { ja: "Dozo", en: "Go Ahead", category: "Directional" },
+            // Restaurant
+            { ja: "Osusume wa nanidesu ka?", en: "What do you recommend?", category: "Restaurant", pronunciation: "おすすめは何ですか？" },
+            { ja: "Itadakimasu", en: "I gratefully receive this meal", category: "Restaurant", pronunciation: "いただきますー" },
+            { ja: "Gochisousama deshita", en: "Thank you for the feast", category: "Restaurant" },
+            { ja: "Kore o onegaishimasu", en: "This one please", category: "Restaurant", pronunciation: "これ お お願いします" },
+            { ja: "Mizu", en: "Water", category: "Restaurant" },
+            { ja: "Bīru", en: "Beer", category: "Restaurant" },
+            { ja: "Kōra", en: "Cola", category: "Restaurant" },
+            { ja: "Oishi", en: "Delicious", category: "Restaurant" },
+            { ja: "Kanpai", en: "Cheers!", category: "Restaurant" },
+            { ja: "Okaikei wo onegaishimasu", en: "The check, please", category: "Restaurant", pronunciation: "お会計お願いします" },
+            { ja: "Sekidai wa ikura desu ka?", en: "How much is your table charge?", category: "Restaurant", pronunciation: "席代はいくらですか？" },
+            // Locations
+            { ja: "Eki", en: "Train station", category: "Locations" },
+            { ja: "Basutei", en: "Bus stop", category: "Locations", pronunciation: "バス停" },
+            { ja: "Hoteru", en: "Hotel", category: "Locations" },
+            { ja: "Konbini", en: "Convenience store", category: "Locations" },
+            { ja: "Toire", en: "Toilet", category: "Locations" },
+            { ja: "Dono densha", en: "Which train?", category: "Locations" },
+            { ja: "Dono basu", en: "Which bus?", category: "Locations" },
+            { ja: "_ wa doko desu ka", en: "Where is _?", category: "Locations", pronunciation: "wa doko desu ka"  },
+            // Countries
+            { ja: "Igirisu-jin", en: "British", category: "Countries" },
+            { ja: "Porutogaru-jin", en: "Portuguese", category: "Countries" },
+            // Numbers
+            { ja: "Ichi", en: "One", category: "Numbers", pronunciation: "いち" },
+            { ja: "Ni", en: "Two", category: "Numbers", pronunciation: "に" },
+            { ja: "San", en: "Three", category: "Numbers", pronunciation: "さん" },
+            { ja: "Yon", en: "Four", category: "Numbers", pronunciation: "よん" },
+            { ja: "Go", en: "Five", category: "Numbers", pronunciation: "ご" },
+            { ja: "Roku", en: "Six", category: "Numbers", pronunciation: "ろく" },
+            { ja: "Nana", en: "Seven", category: "Numbers", pronunciation: "なな" },
+            { ja: "Hachi", en: "Eight", category: "Numbers", pronunciation: "はち" },
+            { ja: "Kyū", en: "Nine", category: "Numbers", pronunciation: "きゅう" },
+            { ja: "Jū", en: "Ten", category: "Numbers", pronunciation: "じゅう" }
+        ];
+
+        // --- STATE ---
+        let currentGameMode = 0;
+        let activeVocabulary = [];
+        let currentQuestion = null;
+        let isAnswering = false;
+        let audioCtx;
+        let mistakesMade = [];
+        let lastAskedQuestions = [];
+        const RECENT_HISTORY_LENGTH = 5;
+
+        // --- DOM ELEMENTS ---
+        const gameSelectionDiv = document.getElementById('game-selection');
+        const gameInterfaceDiv = document.getElementById('game-interface');
+        const categorySelectionScreenDiv = document.getElementById('category-selection-screen');
+        const mistakesScreenDiv = document.getElementById('mistakes-screen');
+        const studyScreenDiv = document.getElementById('study-screen');
+        const questionText = document.getElementById('question-text');
+        const speakButton = document.getElementById('speak-button');
+        const optionsGrid = document.getElementById('options-grid');
+        const feedbackMessage = document.getElementById('feedback-message');
+        const categoryError = document.getElementById('category-error');
+        
+        // --- SOUND EFFECTS ---
+        function playSound(type) {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch (e) {
+                    console.error("Web Audio API is not supported in this browser");
+                    return;
+                }
+            }
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.01); 
+            if (type === 'correct') {
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                oscillator.type = 'sine';
+            } else { // incorrect
+                oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
+                oscillator.type = 'sawtooth';
+            }
+            oscillator.start(audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.3);
+            oscillator.stop(audioCtx.currentTime + 0.3);
+        }
+
+        // --- SPEECH SYNTHESIS ---
+        const synth = window.speechSynthesis;
+        let japaneseVoice = null;
+
+        function loadVoices() {
+            const voices = synth.getVoices();
+            japaneseVoice = voices.find(voice => voice.lang === 'ja-JP');
+            if (!japaneseVoice) {
+                japaneseVoice = voices.find(voice => voice.lang.startsWith('ja'));
+            }
+        }
+
+        if (synth.onvoiceschanged !== undefined) {
+            synth.onvoiceschanged = loadVoices;
+        }
+        loadVoices();
+
+        function speak(text) {
+             if (synth.speaking) {
+                synth.cancel();
+            }
+            if (!japaneseVoice) {
+                console.warn("Japanese voice not available. Attempting to reload.");
+                loadVoices(); 
+                if(!japaneseVoice) {
+                    console.error("Japanese voice not found.");
+                    return;
+                }
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = japaneseVoice;
+            utterance.lang = 'ja-JP';
+            utterance.rate = 0.9;
+            synth.speak(utterance);
+        }
+
+
+        function speakCurrentWord() {
+            if (currentQuestion) {
+                 const textToSpeak = currentQuestion.pronunciation || currentQuestion.ja;
+                 speak(textToSpeak);
+            }
+        }
+        
+        // --- GAME LOGIC & NAVIGATION ---
+        function startGame(mode) {
+            currentGameMode = mode;
+            gameSelectionDiv.classList.add('hidden');
+
+            if (mode === 1 || mode === 2 || mode === 3) {
+                showCategorySelection();
+            } else {
+                activeVocabulary = [...vocabulary];
+                startQuiz();
+            }
+        }
+
+        function showCategorySelection() {
+            const categoryListDiv = document.getElementById('category-list');
+            categoryListDiv.innerHTML = ''; // Clear previous
+            categoryError.classList.add('hidden');
+
+            const categories = [...new Set(vocabulary.map(item => item.category))];
+
+            // Add "All Categories" option
+            categoryListDiv.innerHTML += `
+                <label class="flex items-center space-x-3 p-3 bg-slate-600/50 rounded-lg cursor-pointer hover:bg-slate-600">
+                    <input type="checkbox" id="check-all-categories" class="relative appearance-none w-5 h-5 border-2 border-slate-400 rounded-md custom-checkbox">
+                    <span class="font-bold text-indigo-300">All Categories</span>
+                </label>
+            `;
+
+            categories.forEach(category => {
+                categoryListDiv.innerHTML += `
+                    <label class="flex items-center space-x-3 p-3 bg-slate-600/50 rounded-lg cursor-pointer hover:bg-slate-600">
+                        <input type="checkbox" name="category" value="${category}" class="relative appearance-none w-5 h-5 border-2 border-slate-400 rounded-md custom-checkbox">
+                        <span>${category}</span>
+                    </label>
+                `;
+            });
+
+            document.getElementById('check-all-categories').addEventListener('change', (e) => {
+                document.getElementsByName('category').forEach(checkbox => {
+                    checkbox.checked = e.target.checked;
+                });
+            });
+
+            categorySelectionScreenDiv.classList.remove('hidden');
+        }
+
+        function startQuizWithSelectedCategories() {
+            const selectedCategories = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(cb => cb.value);
+            
+            if (selectedCategories.length === 0) {
+                categoryError.classList.remove('hidden');
+                return;
+            }
+            
+            categoryError.classList.add('hidden');
+            activeVocabulary = vocabulary.filter(item => selectedCategories.includes(item.category));
+            
+            if (activeVocabulary.length < 4) {
+                categoryError.textContent = "Please select categories with at least 4 words total.";
+                categoryError.classList.remove('hidden');
+                return;
+            }
+
+            categorySelectionScreenDiv.classList.add('hidden');
+            startQuiz();
+        }
+
+        function startQuiz() {
+            mistakesMade = [];
+            lastAskedQuestions = [];
+            gameInterfaceDiv.classList.remove('hidden');
+            generateQuestion();
+        }
+
+
+        function showMenu() {
+            gameInterfaceDiv.classList.add('hidden');
+
+            if (mistakesMade.length > 0) {
+                displayMistakes();
+                mistakesScreenDiv.classList.remove('hidden');
+            } else {
+                goToMainMenu();
+            }
+        }
+        
+        function showStudyMode() {
+            gameSelectionDiv.classList.add('hidden');
+            mistakesScreenDiv.classList.add('hidden');
+            gameInterfaceDiv.classList.add('hidden');
+            populateStudyScreen();
+            studyScreenDiv.classList.remove('hidden');
+        }
+
+        function populateStudyScreen() {
+            const container = document.getElementById('study-list-container');
+            container.innerHTML = ''; 
+
+            const categories = [...new Set(vocabulary.map(item => item.category))];
+
+            categories.forEach(category => {
+                const categoryWrapper = document.createElement('div');
+                
+                const categoryHeader = document.createElement('h3');
+                categoryHeader.className = 'text-xl font-bold text-indigo-300 mb-3 sticky top-0 bg-slate-800 py-2 z-10';
+                categoryHeader.textContent = category;
+                categoryWrapper.appendChild(categoryHeader);
+
+                const list = document.createElement('ul');
+                list.className = 'space-y-3 bg-slate-700/50 p-4 rounded-lg';
+                
+                const wordsInCategory = vocabulary.filter(item => item.category === category);
+
+                wordsInCategory.forEach(word => {
+                    const li = document.createElement('li');
+                    li.className = 'flex justify-between items-center text-slate-300 p-2 rounded-md';
+                    const textToSpeak = word.pronunciation || word.ja;
+                    const safeText = textToSpeak.replace(/'/g, "\\'");
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <button onclick="speak('${safeText}')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-transform transform hover:scale-110">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                            </button>
+                            <span class="font-bold">${word.ja}</span>
+                        </div>
+                        <span class="text-right text-slate-400">${word.en}</span>
+                    `;
+                    list.appendChild(li);
+                });
+
+                categoryWrapper.appendChild(list);
+                container.appendChild(categoryWrapper);
+            });
+        }
+
+
+        function displayMistakes() {
+            const mistakesList = document.getElementById('mistakes-list');
+            mistakesList.innerHTML = ''; 
+
+            mistakesMade.forEach(mistake => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center text-slate-300 p-2 bg-slate-600/50 rounded-md';
+                const textToSpeak = mistake.pronunciation || mistake.ja;
+                const safeText = textToSpeak.replace(/'/g, "\\'");
+                li.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <button onclick="speak('${safeText}')" class="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition-transform transform hover:scale-110">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                        </button>
+                        <span class="font-bold">${mistake.ja}</span>
+                    </div>
+                    <span class="text-right text-slate-400">${mistake.en}</span>
+                `;
+                mistakesList.appendChild(li);
+            });
+        }
+
+        function goToMainMenu() {
+            mistakesScreenDiv.classList.add('hidden');
+            studyScreenDiv.classList.add('hidden');
+            categorySelectionScreenDiv.classList.add('hidden');
+            gameInterfaceDiv.classList.add('hidden');
+            gameSelectionDiv.classList.remove('hidden');
+        }
+
+        function generateQuestion(repeat = false) {
+            isAnswering = false;
+            feedbackMessage.textContent = '';
+            
+            if (!repeat) {
+                let potentialQuestion;
+                
+                if (activeVocabulary.length > RECENT_HISTORY_LENGTH) {
+                    do {
+                        const correctIndex = Math.floor(Math.random() * activeVocabulary.length);
+                        potentialQuestion = activeVocabulary[correctIndex];
+                    } while (lastAskedQuestions.some(q => q.ja === potentialQuestion.ja));
+                } else {
+                    const correctIndex = Math.floor(Math.random() * activeVocabulary.length);
+                    potentialQuestion = activeVocabulary[correctIndex];
+                }
+            
+                currentQuestion = potentialQuestion;
+
+                lastAskedQuestions.push(currentQuestion);
+                if (lastAskedQuestions.length > RECENT_HISTORY_LENGTH) {
+                    lastAskedQuestions.shift(); 
+                }
+            }
+            
+            const incorrectOptions = [];
+            while (incorrectOptions.length < 3) {
+                const randomIndex = Math.floor(Math.random() * activeVocabulary.length);
+                if (activeVocabulary[randomIndex].ja !== currentQuestion.ja && !incorrectOptions.some(opt => opt.ja === activeVocabulary[randomIndex].ja)) {
+                    incorrectOptions.push(activeVocabulary[randomIndex]);
+                }
+            }
+            
+            let question, options;
+            switch (currentGameMode) {
+                case 1: // Japanese to English
+                    question = currentQuestion.ja;
+                    options = [currentQuestion.en, ...incorrectOptions.map(opt => opt.en)];
+                    speakButton.classList.remove('hidden');
+                    speakCurrentWord(); 
+                    break;
+                case 2: // English to Japanese
+                    question = currentQuestion.en;
+                    options = [currentQuestion.ja, ...incorrectOptions.map(opt => opt.ja)];
+                    speakButton.classList.add('hidden');
+                    break;
+                case 3: // Listening Comprehension
+                    question = "Listen...";
+                    options = [currentQuestion.en, ...incorrectOptions.map(opt => opt.en)];
+                    speakButton.classList.remove('hidden');
+                    speakCurrentWord();
+                    break;
+            }
+            
+            options.sort(() => Math.random() - 0.5);
+
+            questionText.textContent = question;
+            optionsGrid.innerHTML = '';
+            options.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = "w-full bg-slate-600 hover:bg-slate-500 text-white font-semibold py-4 px-4 rounded-lg text-md transition-all duration-200 shadow-sm border border-slate-500";
+                button.onclick = () => {
+                    if (currentGameMode === 2) {
+                        const vocabItem = vocabulary.find(v => v.ja === option);
+                        const textToSpeak = vocabItem?.pronunciation || option;
+                        speak(textToSpeak);
+                        checkAnswer(option, button, true);
+                    } else {
+                        checkAnswer(option, button, false);
+                    }
+                };
+                optionsGrid.appendChild(button);
+            });
+        }
+        
+        function checkAnswer(selectedOption, button, delayFeedback = false) {
+            if (isAnswering) return;
+            isAnswering = true;
+            
+            let correctAnswer;
+            if(currentGameMode === 1 || currentGameMode === 3) {
+                correctAnswer = currentQuestion.en;
+            } else {
+                correctAnswer = currentQuestion.ja;
+            }
+
+            const performFeedback = () => {
+                if (selectedOption === correctAnswer) {
+                    playSound('correct');
+                    button.className = "w-full bg-green-500 text-white font-semibold py-4 px-4 rounded-lg text-md transition-all duration-200 shadow-sm border border-green-500 feedback-correct";
+                    feedbackMessage.textContent = 'Correct! 🎉';
+                    feedbackMessage.className = "mt-6 text-center text-xl font-medium h-8 text-green-600";
+                    setTimeout(() => generateQuestion(false), 1500); // Shorter delay, new question
+                } else {
+                    playSound('incorrect');
+                    if (!mistakesMade.some(m => m.ja === currentQuestion.ja)) {
+                        mistakesMade.push(currentQuestion);
+                    }
+                    button.className = "w-full bg-red-500 text-white font-semibold py-4 px-4 rounded-lg text-md transition-all duration-200 shadow-sm border border-red-500 feedback-incorrect";
+                    feedbackMessage.innerHTML = `Incorrect, the correct answer is:<br><strong class="text-2xl mt-1 block">${correctAnswer}</strong>`;
+                    feedbackMessage.className = "mt-6 text-center text-lg font-medium min-h-[4rem] text-red-600 leading-tight";
+
+                    Array.from(optionsGrid.children).forEach(child => {
+                        if (child.textContent === correctAnswer) {
+                            child.className = "w-full bg-green-500 text-white font-semibold py-4 px-4 rounded-lg text-md transition-all duration-200 shadow-sm border border-green-500";
+                        }
+                    });
+                    setTimeout(() => generateQuestion(true), 3000); // Longer delay, repeat question
+                }
+            };
+
+            if (delayFeedback) {
+                const dynamicDelay = Math.max(1000, 80 * selectedOption.length); // Base 1s, plus 80ms per character
+                setTimeout(performFeedback, dynamicDelay);
+            } else {
+                performFeedback();
+            }
+        }
+
+    </script>
+</body>
+</html>
+
